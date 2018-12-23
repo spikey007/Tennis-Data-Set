@@ -1,0 +1,167 @@
+---
+title: "CSE7302c_CUTe"
+author: "RISHAB RAJ SINGH"
+date: "10/27/2018"
+output: html_document
+---
+#Setting Working Directory
+```{r}
+library(ROCR)
+library(MASS)
+library(caret)
+library(plyr)
+library(DMwR)
+rm(list = ls(all=TRUE))
+setwd("C:/Insofe/cute_2/CSE7302c_CUTe-1540270465813/CSE7302c_CUTe")
+data=read.csv("train_data.csv")
+test_data <- read.csv("test_data.csv", header=T)
+SampleSubmission <- read.csv("SampleSubmission.csv")
+ 
+```
+#Reading the Data and Modifying the Necessary
+```{r}
+#data=train_data
+str(data)
+data$index=NULL
+data$tax_paid=NULL
+data$loan_taken=as.factor(data$loan_taken)
+data$target=as.factor(data$target)
+```
+#Test Manipulation
+```{r}
+
+str(test_data)
+test_data$index=NULL
+test_data$tax_paid=NULL
+test_data$loan_taken=as.factor(test_data$loan_taken)
+
+```
+#Checking for Na values Column wise
+```{r}
+
+colSums(is.na(test_data))
+
+
+
+
+test_cat <- test_data[, (names(test_data) %in% c("working_sector", "occupation", "country"))]
+i1 <- !sapply(test_cat, is.numeric)
+Mode <- function(x) { 
+      ux <- sort(unique(x))
+      ux[which.max(tabulate(match(x, ux)))] 
+}
+test_cat[i1] <- lapply(test_cat[i1], function(x)
+              replace(x, is.na(x), Mode(x[!is.na(x)])))
+colSums(is.na(test_cat))
+
+
+
+
+test_set <- test_data
+test_set$working_sector <- NULL
+test_set$occupation <- NULL
+test_set$country <- NULL
+test_set <- data.frame(test_set, test_cat)
+
+#removed_na_test_data=na.omit(test_data)
+#olSums(is.na(removed_na_test_data))
+#str(removed_na_test_data)
+str(test_data)
+```
+#Removing Na values
+```{r}
+
+removed_na_data=na.omit(data)
+colSums(is.na(removed_na_data))
+```
+
+```{r}
+#SPlitting the data
+library(caret)
+set.seed(123)
+train_rows <- createDataPartition(removed_na_data$target, p = 0.7, list = F)
+train_split_data <- removed_na_data[train_rows, ]
+validation_data <- removed_na_data[-train_rows, ]
+dim(train_split_data)
+dim(validation_data)
+colnames(train_split_data)
+```
+#Model Building
+```{r}
+
+model=glm(target~.,data =train_split_data,family ="binomial")
+summary(model)
+```
+#Rocr Curve
+```{r}
+
+library(ROCR)
+prob_train <- predict(model, type = "response")
+pred <- prediction(prob_train, train_split_data$target)
+#Printing the AUC Percentage
+perf <- performance(pred, measure="tpr", x.measure="fpr")
+plot(perf, col=rainbow(10), colorize=T, print.cutoffs.at=seq(0,1,0.05))
+perf_auc <- performance(pred, measure="auc")
+auc <- perf_auc@y.values[[1]]
+print(auc)
+```
+
+#Choose a Cutoff Value
+#Predictions on validation data
+```{r}
+
+prob_test <- predict(model, validation_data, type = "response")
+
+preds_test <- ifelse(prob_test > 0.50, "yes", "no")
+
+test_data_labs <- validation_data$target
+
+conf_matrix <- table(test_data_labs, preds_test)
+
+print(conf_matrix)
+#ACCURACY
+accuracy <- sum(diag(conf_matrix))/sum(conf_matrix)
+print(accuracy)
+
+#Specificity
+specificity <- conf_matrix[1, 1]/sum(conf_matrix[1, ])
+
+print(specificity)
+
+#Sensitivity
+sensitivity <- conf_matrix[2, 2]/sum(conf_matrix[2, ])
+
+print(sensitivity)
+
+
+
+```
+#Predicting on the Final Data set
+```{r}
+
+prob_test <- predict(model, test_set , type = "response")
+
+preds_test <- ifelse(prob_test > 0.50, "1", "0")
+
+
+
+
+```
+
+
+
+
+```{r}
+
+head(SampleSubmission)
+sample_csv_out1 <- SampleSubmission
+sample_csv_out1$target = NULL
+pred_out1 <- cbind(sample_csv_out1, preds_test)
+colnames(pred_out1)[2] <- "target"
+write.csv(pred_out1, file = "Final.csv")
+
+
+
+```
+
+
