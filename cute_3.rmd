@@ -1,0 +1,269 @@
+
+```{r}
+#Tennis Tennis, one of the most popular professional sports around the world, still uses manual coding of point outcomes. The purpose of this cute is to find a better approach.
+
+#Every tennis match is made up of a sequence of points. A point begins with a serve and players exchange shots until a player makes an error or is unable to return a shot in play.
+
+#Traditionally, the shot ending a point in tennis has been had been described in one of three mutually exclusive ways: a winner, an unforced error, or a forced error. A winner is a shot that was in play, not touched by the opponent, and ends with the point going to the player who made the shot. The other two categories are two distinct types of errors where both end with the point going to the player who did not make the shot.
+
+
+##R.Preetham
+```
+
+
+
+
+
+
+```{r}
+rm(list = ls())
+
+```
+
+```{r}
+ setwd("C:/Users/lenovo/Desktop/cute exam/cute 3")
+tennis=(read.csv("train-1542197608821.csv"))
+tennis
+
+```
+```{r}
+table(tennis$hitpoint)
+
+
+
+```
+
+
+
+```{r}
+
+summary(tennis)
+tennis$ID=NULL		
+	
+
+
+
+```
+
+```{r}
+str(tennis)
+
+
+```
+
+```{r}
+colnames(tennis)
+```
+
+`
+
+```{r}
+cat_attr=subset(tennis,select =c(hitpoint,outside.sideline,outside.baseline,same.side,previous.hitpoint,server.is.impact.player,outcome))
+num_attr=subset(tennis,select =-c(hitpoint,outside.sideline,outside.baseline,same.side,previous.hitpoint,server.is.impact.player,outcome))         
+```
+
+```{r}
+library(ggplot2)
+ggplot(tennis, aes(speed, fill = outcome)) + 
+  geom_histogram(binwidth = 0.5)
+
+```
+
+```{r}
+library(ggplot2)
+ggplot(tennis, aes(distance.from.sideline, fill = outcome)) + 
+  geom_histogram(binwidth = 0.5)
+```
+
+
+
+```{r}
+set.seed(009)
+
+train_RowIDs = sample(1:nrow(tennis), nrow(tennis)*0.7)
+train_Data = tennis[train_RowIDs,]
+test_Data = tennis[-train_RowIDs,]
+
+rm(train_RowIDs)
+```
+
+
+```{r}
+table(tennis$gender)
+```
+
+
+
+```{r}
+table(train_Data$gender)
+```
+
+
+```{r}
+table(test_Data$gender)
+```
+
+
+
+
+
+```{r}
+set.seed(123)
+library(randomForest)
+
+model = randomForest(outcome ~ ., data=train_Data, 
+                     keep.forest=TRUE, ntree=263) 
+
+# Print and understand the model
+print(model)
+```
+
+
+
+
+
+
+
+```{r}
+model$importance
+```
+
+```{r}
+rf_Imp_Attr = data.frame(model$importance)
+rf_Imp_Attr = data.frame(row.names(rf_Imp_Attr),rf_Imp_Attr[,1])
+rf_Imp_Attr
+```
+
+```{r}
+colnames(rf_Imp_Attr) = c('Attributes', 'Importance')
+rf_Imp_Attr = rf_Imp_Attr[order(rf_Imp_Attr$Importance, decreasing = TRUE),]
+rf_Imp_Attr
+```
+
+```{r}
+varImpPlot(model)
+```
+
+```{r}
+pred_Train = predict(model, 
+                     train_Data[,setdiff(names(train_Data), "outcome")],
+                     type="response", 
+                     norm.votes=TRUE)
+```
+
+
+
+
+```{r}
+cm_Train = table("actual"= train_Data$outcome, "predicted" = pred_Train);
+cm_Train
+```
+
+```{r}
+accu_Train= sum(diag(cm_Train))/sum(cm_Train)
+accu_Train
+```
+
+```{r}
+# Predicton Test Data
+pred_Test = predict(model, test_Data[,setdiff(names(test_Data),
+                                              "outcome")],
+                    type="response", 
+                    norm.votes=TRUE)
+
+# Build confusion matrix and find accuracy   
+cm_Test = table("actual"=test_Data$outcome, "predicted"=pred_Test);
+cm_Test
+```
+
+```{r}
+accu_Test= sum(diag(cm_Test))/sum(cm_Test)
+accu_Test
+```
+
+```{r}
+mtry <- tuneRF(train_Data[-25],train_Data$outcome, ntreeTry=1000,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+```
+```{r}
+best.m <- mtry[mtry[, 2] == min(mtry[, 2]), 1]
+print(mtry)
+```
+
+
+
+```{r}
+set.seed(71)
+
+rf <- randomForest(outcome~.,data=train_Data, mtry=7, importance=TRUE,ntree=250)
+print(rf)
+```
+
+```{r}
+pred_Train = predict(rf, 
+                     train_Data[,setdiff(names(train_Data), "outcome")],
+                     type="response", 
+                     norm.votes=TRUE)
+
+# Build confusion matrix and find accuracy   
+cm_Train = table("actual"= train_Data$outcome, "predicted" = pred_Train)
+cm_Train
+```
+
+```{r}
+pred_Test = predict(rf, test_Data[,setdiff(names(test_Data),
+                                              "outcome")],
+                    type="response", 
+                    norm.votes=TRUE)
+
+# Build confusion matrix and find accuracy   
+cm_Test = table("actual"=test_Data$outcome, "predicted"=pred_Test)
+cm_Test
+```
+```{r}
+accu_Test= sum(diag(cm_Test))/sum(cm_Test)
+rm(cm_Test)
+
+```
+
+
+
+```{r}
+accu_Test
+```
+
+```{r}
+tennistest=read.csv(("test-1542197608821.csv"))
+tennistest
+
+
+
+```
+
+```{r}
+str(tennistest)
+tennistest$ID=NULL
+
+
+```
+
+
+
+
+```{r}
+pred_Test1 = predict(model, tennistest[,setdiff(names(tennistest),
+                                              "outcome")],
+                    type="response", 
+                    norm.votes=TRUE)
+```
+
+
+
+
+```{r}
+#write.csv(pred_Test1,file = "batch12345678910111213141516.csv")
+
+#batch_15_submission = read.csv("batch12345678910111213141516.csv")
+#batch_15_submission
+```
+
